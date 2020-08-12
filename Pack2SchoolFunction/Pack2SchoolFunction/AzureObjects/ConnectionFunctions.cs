@@ -34,7 +34,7 @@ namespace Pack2SchoolFunctions.AzureObjects
                 ConnectionRequest connectionRequest = await Utilities.ExtractContent<ConnectionRequest>(request);
                 log.LogInformation($"Negotiating connection for user: <{connectionRequest.UserId}>.");
 
-                string clientHubUrl = SignalR.GetClientHubUrl("CounterHub");
+                string clientHubUrl = SignalR.GetClientHubUrl("Pack2SchoolSignalR1");
                 string accessToken = SignalR.GenerateAccessToken(clientHubUrl, connectionRequest.UserId);
                 return new SignalRConnectionInfo { AccessToken = accessToken, Url = clientHubUrl };
             }

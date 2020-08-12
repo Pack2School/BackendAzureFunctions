@@ -6,12 +6,7 @@ namespace Pack2SchoolFunction.Templates
 {
     public class SchoolClass
     {
-        public string teacherName;
+        public string teacherId;
         public string grade;
-
-        public override string ToString()
-        {
-            return $"{teacherName}{grade}";
-        }
     }
 }

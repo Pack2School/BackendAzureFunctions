@@ -7,9 +7,11 @@ namespace Pack2SchoolFunction.Templates
     public class SubjectRequest
     {
         public string userId;
-        public string userName;
         public string tableName;
-        public string Subject;
+        public string subject;
+        public string newSubjectName;
+        public string operation;
         public string needed;
+        public string stickerId;
     }
 }
