@@ -33,16 +33,16 @@ namespace Pack2SchoolFunctions
         #region Subject Table operation 
 
         public const string AddSubjectOperation = "ADD";
-        public const string RenameSubjectOperation = "Rename";
-        public const string DeleteSubjectOperation = "Delete";
+        public const string RenameSubjectOperation = "RENAME";
+        public const string DeleteSubjectOperation = "DELETE";
 
         #endregion
 
         #region User Consts
 
-        public const string TeacherType = "teacher";
-        public const string StudentType = "student";
-        public const string ParentType = "parent";
+        public const string TeacherType = "Teacher";
+        public const string StudentType = "Student";
+        public const string ParentType = "Parent";
 
         #endregion
 
@@ -50,6 +50,12 @@ namespace Pack2SchoolFunctions
 
         public  static readonly string classesTableName = "ClassesTable";
         public static readonly string UsersTableName = "UsersTable";
+
+        #endregion
+
+        #region Iot Device Operation 
+
+        public static readonly string scanOperaion = "Scan";
 
         #endregion
     }

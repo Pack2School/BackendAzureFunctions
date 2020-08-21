@@ -56,11 +56,17 @@ namespace Pack2SchoolFunctions
 
             if (newUserRequest.userType == ProjectConsts.ParentType)
             {
-                childrenIds = string.Join(ProjectConsts.delimiter, newUserRequest.childrenId);
+                childrenIds = string.Join(ProjectConsts.delimiter, newUserRequest.childrenIds);
                 if (!UsersTableUtilities.ValidateChildrenIdExist(usersResult, newUserRequest, response))
                 {
                     return JsonConvert.SerializeObject(response);
                 }
+            }
+
+
+            if (newUserRequest.userType == ProjectConsts.TeacherType)
+            {
+                newUserRequest.userName = UsersTableUtilities.GetUniqueName(newUserRequest.userName);
             }
 
             var newUser = new UsersTable()
@@ -68,16 +74,25 @@ namespace Pack2SchoolFunctions
                 UserType = newUserRequest.userType,
                 UserEmail = newUserRequest.userEmail,
                 UserPassword = newUserRequest.userPassword,
-                TeacherName = newUserRequest.teacherName,
-                Grades = newUserRequest.grade,
+                TeacherName = newUserRequest.teacherUser,
+                ClassId = newUserRequest.classId,
                 ChildrenIds = childrenIds
             };
 
             await CloudTableUtilities.AddTableEntity<UsersTable>(usersTable, newUser, newUserRequest.userId, newUserRequest.userName);
            
-            if (newUserRequest.userType == ProjectConsts.ParentType)
+            if (newUserRequest.userType == ProjectConsts.TeacherType)
             {
-                response.Data = UsersTableUtilities.GetSubjectsTableNamesForParent(newUser);
+                response.UpdateData(newUser.RowKey);
+            }
+
+
+            if (newUserRequest.userType == ProjectConsts.StudentType)
+            {
+                var deviceConnectionString = await IotDeviceFunctions.AddDeviceAsync(newUserRequest.userId);
+                var subjectsTablesNames = UsersTableUtilities.GetSubjectsTableNamesForStudent(newUser);
+                SubjectsTableUtilities.AddStuentToClassTableAsync(subjectsTablesNames.First(), newUserRequest, response);
+                response.UpdateData(new { deviceConnectionString, subjectsTablesNames });
             }
 
             return JsonConvert.SerializeObject(response);
@@ -112,22 +127,22 @@ namespace Pack2SchoolFunctions
 
                 if (user.UserPassword == userRequest.userPassword)
                 {
-                    List<string> subjectsTablesNames;
+                    List<string> Info;
 
                     switch (user.UserType) 
                     {
                         case ProjectConsts.ParentType:
-                            subjectsTablesNames = UsersTableUtilities.GetSubjectsTableNamesForParent(user);
+                            Info = user.ChildrenIds.Split(ProjectConsts.delimiter).ToList();
                             break;
                         case ProjectConsts.TeacherType:
-                            subjectsTablesNames = UsersTableUtilities.GetSubjectsTableNamesForTeacher(user);
+                            Info = UsersTableUtilities.GetSubjectsTableNamesForTeacher(user);
                             break;
                         default:
-                            subjectsTablesNames = UsersTableUtilities.GetSubjectsTableNamesForStudent(user);
+                            Info = UsersTableUtilities.GetSubjectsTableNamesForStudent(user);
                             break;
                     }
-
-                    response.UpdateData(new { user.UserType, subjectsTablesNames });
+                    response.UpdateData(new { userName = user.RowKey, userType = user.UserType, Info });
+                  
                 }
                 else
                 {
@@ -135,6 +150,27 @@ namespace Pack2SchoolFunctions
                 }
             }
 
+            return JsonConvert.SerializeObject(response);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="usersTable"></param>
+        /// <returns></returns>
+        [FunctionName("GetChildSubjectsTableName")]
+        public static async Task<string> GetChildSubjectsTableName(
+
+           [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequestMessage request,
+           [Table("UsersTable")] CloudTable usersTable)
+        {
+            OperationResult response = new OperationResult();
+            UserRequest userRequest = await Utilities.ExtractContent<UserRequest>(request);
+
+            var childEntity = CloudTableUtilities.getTableEntityAsync<UsersTable>(usersTable, userRequest.childrenIds.First()).Result.First();
+            var subjectsTableName = UsersTableUtilities.GetSubjectsTableNamesForStudent(childEntity);
+            response.UpdateData(subjectsTableName);
             return JsonConvert.SerializeObject(response);
         }
     }

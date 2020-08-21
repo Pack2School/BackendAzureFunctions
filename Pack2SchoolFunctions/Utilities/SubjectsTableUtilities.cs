@@ -15,7 +15,6 @@ using Newtonsoft.Json.Linq;
 using Microsoft.Azure.EventHubs.Processor;
 using System.Linq;
 using Pack2SchoolFunctions;
-using System.Reflection.Metadata.Ecma335;
 using Pack2SchoolFunction;
 
 namespace Pack2SchoolFunctions
@@ -39,51 +38,34 @@ namespace Pack2SchoolFunctions
       
 
 
-        internal static async Task AddStuentToClassTableAsync(UserRequest newUserRequest, OperationResult response)
+        internal static async Task AddStuentToClassTableAsync(string subjectsTableName, UserRequest newUserRequest, OperationResult response)
         {
-            var table = CloudTableUtilities.OpenTable(newUserRequest.subjectsTableName);
+            var table = CloudTableUtilities.OpenTable(subjectsTableName);
+            SubjectsTable newStudentNecessity = new SubjectsTable();
+            SubjectsTable newStudentSubjects = new SubjectsTable();
 
             if (table == null)
             {
                 response.UpdateFailure(ErrorMessages.subjectTableNotExist);
-                response.RequestSucceeded = false;
+                response.requestSucceeded = false;
                 return;
             }
+        
+            var subjectsEntity = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(table, classSubjectsPartitionKey).Result.First();
+            var subjectNames = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix) && x.GetValue(subjectsEntity, null) !=  null);
 
-            var subjects = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(table, "0").Result.Results.First();
-            SubjectsTable newStudent = new SubjectsTable();
-
-            if (subjects.SubjectA != null)
+            foreach (var subject in subjectNames)
             {
-                newStudent.SubjectA = "false";
-            }
-            if (subjects.SubjectB != null)
-            {
-                newStudent.SubjectB = "false";
-            }
-            if (subjects.SubjectC != null)
-            {
-                newStudent.SubjectC = "false";
-            }
-            if (subjects.SubjectD != null)
-            {
-                newStudent.SubjectD = "false";
-            }
-            if (subjects.SubjectE != null)
-            {
-                newStudent.SubjectE = "false";
-            }
-            if (subjects.SubjectF != null)
-            {
-                newStudent.SubjectF = "false";
+                subject.SetValue(newStudentNecessity, NotInsideTheBag);
             }
 
-            CloudTableUtilities.AddTableEntity(table, newStudent, newUserRequest.userId, newUserRequest.userName);
+            await CloudTableUtilities.AddTableEntity(table, newStudentNecessity, newUserRequest.userId, NecessityRowKey);
+            await CloudTableUtilities.AddTableEntity(table, newStudentSubjects, newUserRequest.userId, SubjectRowKey);
         }
 
         public static void RenameSubject(SubjectRequest editSubjectRequest, SubjectsTable subjectsNames, SubjectsTable subjectsNecessity, OperationResult operationResult)
         {
-            var subject = typeof(SubjectsTable).GetProperties().Where(x => x.GetValue(subjectsNames, null)?.ToString() == editSubjectRequest.subject);
+            var subject = typeof(SubjectsTable).GetProperties().Where(x => x.GetValue(subjectsNames, null)?.ToString() == editSubjectRequest.subjectName);
 
             if (!subject.Any())
             {
@@ -105,14 +87,14 @@ namespace Pack2SchoolFunctions
             }
             else
             {
-                subjectsName.First().SetValue(subjectsNames,addSubjectRequest.subject);
+                subjectsName.First().SetValue(subjectsNames,addSubjectRequest.subjectName);
                 subjectsName.First().SetValue(subjectsNecessity, "false");
             }
         }
 
         public static void DeleteSubject(SubjectRequest editSubjectRequest, SubjectsTable subjectsNames, SubjectsTable subjectsNecessity, OperationResult operationResult)
         {
-            var subjectsName = typeof(SubjectsTable).GetProperties().Where(x => x.GetValue(subjectsNames, null)?.ToString() == editSubjectRequest.subject);
+            var subjectsName = typeof(SubjectsTable).GetProperties().Where(x => x.GetValue(subjectsNames, null)?.ToString() == editSubjectRequest.subjectName);
 
             if (!subjectsName.Any())
             {
@@ -128,10 +110,11 @@ namespace Pack2SchoolFunctions
 
         public static void UpdateSubjectNecessity(SubjectsTable SubjectNames, SubjectsTable Necessity, SubjectRequest subjectRequest)
         {
-            var subjectName = subjectRequest.subject;
+            var subjectName = subjectRequest.subjectName;
+            var operationReslut = new OperationResult();
             var propertiesDict = typeof(SubjectsTable).GetProperties().ToDictionary(prop => prop.Name, prop => prop.GetValue(SubjectNames, null));
             var propertyName = Utilities.KeyByValue(propertiesDict, subjectName);
-            typeof(SubjectsTable).GetProperty(propertyName).SetValue(Necessity, subjectRequest.needed);
+            typeof(SubjectsTable).GetProperty(propertyName).SetValue(Necessity, subjectRequest.neededForTomorrow);
         }
 
         public static List<string> GetNecessitySubjects(SubjectsTable subjects, SubjectsTable subjectsNecessity)
@@ -176,9 +159,9 @@ namespace Pack2SchoolFunctions
         {
             List<string> missingSubjects = new List<string>();
 
-            var subjectsNamesDict = typeof(SubjectsTable).GetProperties().ToDictionary(prop => prop.Name, prop => prop.GetValue(subjectsNames, null).ToString());
-            var subjectsNecessityDict = typeof(SubjectsTable).GetProperties().ToDictionary(prop => prop.Name, prop => prop.GetValue(subjectsNecessity, null).ToString());
-            var studentSubjectsDict = typeof(SubjectsTable).GetProperties().ToDictionary(prop => prop.Name, prop => prop.GetValue(subjectsNecessity, null).ToString());
+            var subjectsNamesDict = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix) && x.GetValue(subjectsNames, null)!=null).ToDictionary(prop => prop.Name, prop => prop.GetValue(subjectsNames, null).ToString());
+            var subjectsNecessityDict = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix) && x.GetValue(subjectsNames, null) != null).ToDictionary(prop => prop.Name, prop => prop.GetValue(subjectsNecessity, null)?.ToString());
+            var studentSubjectsDict = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix) && x.GetValue(subjectsNames, null) != null).ToDictionary(prop => prop.Name, prop => prop.GetValue(studentSubjects, null)?.ToString());
 
             foreach (var subjectNecessity in subjectsNecessityDict)
             {
@@ -215,6 +198,15 @@ namespace Pack2SchoolFunctions
             foreach(var subject in userSubjects)
             {
                 typeof(SubjectsTable).GetProperty(subject.Value).SetValue(subjectsState, newStates.GetValueOrDefault(subject.Key.ToString()));
+            }
+        }
+
+        internal static void ResetProperties(SubjectsTable necessityRow)
+        {
+            var subjects = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix));
+            foreach (var subject in subjects)
+            {
+                subject.SetValue(necessityRow, NotInsideTheBag);
             }
         }
     }

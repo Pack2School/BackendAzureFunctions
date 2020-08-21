@@ -11,10 +11,9 @@ namespace Pack2SchoolFunction.Templates
         public string userType;
         public string userEmail;
         public string userPassword;
-        public string teacherName;
-        public string grade;
-        public List<string> childrenId;
-        public string deviceId;
+        public string teacherUser;
+        public string classId;
+        public List<string> childrenIds;
         public string subjectsTableName;
    }
 }

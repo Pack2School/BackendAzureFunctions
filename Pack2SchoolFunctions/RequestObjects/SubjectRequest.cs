@@ -8,10 +8,10 @@ namespace Pack2SchoolFunction.Templates
     {
         public string userId;
         public string tableName;
-        public string subject;
+        public string subjectName;
         public string newSubjectName;
-        public string operation;
-        public string needed;
+        public string requestType;
+        public string neededForTomorrow;
         public string stickerId;
     }
 }

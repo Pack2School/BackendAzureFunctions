@@ -7,6 +7,6 @@ namespace Pack2SchoolFunction.Templates
     public class SchoolClass
     {
         public string teacherId;
-        public string grade;
+        public string classId;
     }
 }

@@ -11,10 +11,10 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.SignalRService;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage.Table;
-using Microsoft.AspNet.SignalR.Client.Hubs;
 using Newtonsoft.Json;
 using Microsoft.AspNetCore.SignalR;
 using Pack2SchoolFunction;
+using Pack2SchoolFunction.Templates;
 
 namespace Pack2SchoolFunctions.AzureObjects
 {
@@ -22,19 +22,20 @@ namespace Pack2SchoolFunctions.AzureObjects
     {
 
         private static readonly AzureSignalR SignalR = new AzureSignalR(Environment.GetEnvironmentVariable("AzureSignalRconnectionString"));
+        private static readonly string SignalRName = Environment.GetEnvironmentVariable("SignalRName");
 
-        [FunctionName("negotiate")]
+        [FunctionName("Negotiate")]
         public static async Task<SignalRConnectionInfo> NegotiateConnection(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequestMessage request,
             ILogger log)
         {
             try
             {
-                log.LogInformation($"Negotiating connection for user: < {request.Content.ReadAsStringAsync()}>.");
+                
                 ConnectionRequest connectionRequest = await Utilities.ExtractContent<ConnectionRequest>(request);
                 log.LogInformation($"Negotiating connection for user: <{connectionRequest.UserId}>.");
 
-                string clientHubUrl = SignalR.GetClientHubUrl("Pack2SchoolSignalR1");
+                string clientHubUrl = SignalR.GetClientHubUrl(SignalRName);
                 string accessToken = SignalR.GenerateAccessToken(clientHubUrl, connectionRequest.UserId);
                 return new SignalRConnectionInfo { AccessToken = accessToken, Url = clientHubUrl };
             }

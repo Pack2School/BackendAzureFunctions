@@ -11,6 +11,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Azure.Amqp.Framing;
+using Newtonsoft.Json;
 
 namespace Pack2SchoolFunctions
 {
@@ -24,29 +25,39 @@ namespace Pack2SchoolFunctions
         /// <param name="log">log</param>
         /// <returns></returns>
         [FunctionName("AddNewClass")]
-        public static async Task<OperationResult> AddNewClass(
+        public static async Task<string> AddNewClass(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequestMessage request,
         [Table("ClassesTable")] CloudTable classesTable, ILogger log)
         {
             OperationResult result = new OperationResult();
+            List<string> updatedTeacherGrades;
             SchoolClass newClassInfo = await Utilities.ExtractContent<SchoolClass>(request);
             var usersTable = CloudTableUtilities.OpenTable(ProjectConsts.UsersTableName);
             var teacherEntity = CloudTableUtilities.getTableEntityAsync<UsersTable>(usersTable, newClassInfo.teacherId).Result.First();
-            TableQuerySegment<ClassesTable> classesResult = await CloudTableUtilities.getTableEntityAsync<ClassesTable>(classesTable, teacherEntity.RowKey, newClassInfo.grade);
+            TableQuerySegment<ClassesTable> classesResult = await CloudTableUtilities.getTableEntityAsync<ClassesTable>(classesTable, teacherEntity.RowKey, newClassInfo.classId);
 
             if (!classesResult.Any())
             {
-                SubjectsTableUtilities.CreateClassTable($"{teacherEntity.RowKey}{newClassInfo.grade}");
+                SubjectsTableUtilities.CreateClassTable($"{teacherEntity.RowKey}{newClassInfo.classId}");
                 var newClassEntity = new ClassesTable { subjectsTableName = newClassInfo.ToString() };
                 TableOperation insertOperation = TableOperation.InsertOrReplace(newClassEntity);
                 newClassEntity.PartitionKey = teacherEntity.RowKey;
-                newClassEntity.RowKey = newClassInfo.grade;
-                newClassEntity.subjectsTableName = $"{teacherEntity.RowKey}{newClassInfo.grade}";
+                newClassEntity.RowKey = newClassInfo.classId;
+                newClassEntity.subjectsTableName = $"{teacherEntity.RowKey}{newClassInfo.classId}";
                 await classesTable.ExecuteAsync(insertOperation);
                 result.UpdateData(newClassEntity.subjectsTableName);
-                var updatedTeacherGrades = teacherEntity.Grades.Split(ProjectConsts.delimiter).ToList();
-                updatedTeacherGrades.Add(newClassInfo.grade);
-                teacherEntity.Grades = string.Join(ProjectConsts.delimiter, updatedTeacherGrades);
+
+                if (teacherEntity.ClassId != null)
+                {
+                    updatedTeacherGrades = teacherEntity.ClassId.Split(ProjectConsts.delimiter).ToList();
+                }
+                else
+                {
+                    updatedTeacherGrades = new List<string>();
+                }
+
+                updatedTeacherGrades.Add(newClassInfo.classId);
+                teacherEntity.ClassId = string.Join(ProjectConsts.delimiter, updatedTeacherGrades);
                 await CloudTableUtilities.AddTableEntity<UsersTable>(usersTable, teacherEntity, teacherEntity.PartitionKey, teacherEntity.RowKey);
             }
             else
@@ -54,7 +65,7 @@ namespace Pack2SchoolFunctions
                 result.UpdateFailure(ErrorMessages.classAlreadyExist);
             }
 
-            return result;
+            return JsonConvert.SerializeObject(result);
         }
     }
 }

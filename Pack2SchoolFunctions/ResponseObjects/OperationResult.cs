@@ -12,24 +12,24 @@ namespace Pack2SchoolFunction.Templates
         /// <summary>
         /// cause of failure 
         /// </summary>
-        public string ErrorMessage;
+        public string errorMessage;
 
         /// <summary>
         /// flag indicating whether the operation was successful
         /// </summary>
-        public bool RequestSucceeded;
+        public bool requestSucceeded;
 
         /// <summary>
         /// operatio output
         /// </summary>
-        public object Data;
+        public object data;
 
         /// <summary>
         /// constructor
         /// </summary>
         public OperationResult()
         {
-            this.RequestSucceeded = true;
+            this.requestSucceeded = true;
         }
   
         /// <summary>
@@ -38,8 +38,8 @@ namespace Pack2SchoolFunction.Templates
         /// <param name="errorMessage">description of the cause of the failure</param>
         public void UpdateFailure (string errorMessage)
         {
-            this.ErrorMessage = errorMessage;
-            this.RequestSucceeded = false;
+            this.errorMessage = errorMessage;
+            this.requestSucceeded = false;
         }
 
         /// <summary>
@@ -48,9 +48,9 @@ namespace Pack2SchoolFunction.Templates
         /// <param name="data">operation output</param>
         public void UpdateData(object data)
         {
-            this.Data = data;
-            this.RequestSucceeded = true;
-        }
+            this.data = data;
+            this.requestSucceeded = true;
 
+        }
     }
 }

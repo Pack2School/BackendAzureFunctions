@@ -19,7 +19,7 @@ namespace Pack2SchoolFunction.Tables
 
         public string TeacherName { get; set; }
 
-        public string Grades { get; set; }
+        public string ClassId { get; set; }
 
         public string ChildrenIds { get; set; }
 
