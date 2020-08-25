@@ -1,4 +1,5 @@
-﻿using Microsoft.WindowsAzure.Storage;
+﻿using Microsoft.Azure.Amqp.Framing;
+using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Table;
 using System;
@@ -18,6 +19,12 @@ namespace Pack2SchoolFunctions
             CloudTableClient client = account.CreateCloudTableClient();
             CloudTable table = client.GetTableReference(tableName);
             return table;
+        }
+
+        public static bool TableExist(string tableName)
+        {
+            CloudTable table = OpenTable(tableName);
+            return table.ExistsAsync().Result;
         }
 
         public static async Task<CloudTable> CreateTableAsync(string tableName)

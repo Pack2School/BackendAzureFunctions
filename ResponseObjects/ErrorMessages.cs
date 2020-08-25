@@ -20,6 +20,7 @@ namespace Pack2SchoolFunctions
 
         public static string UserExist = "The registration process failed, the user is already registered on the system ";
         public static string childIdNotFound = "The registration process failed, the following childrens id not found {0}";
+        public static string NoChildIdProvided = "The registration process failed, must provide children' ids";
         public static string EmailIsInvalid = "The registration process failed, the given Email was invalid";
         public static string passwordlIsInvalid = "Invalid password, password must contain at least a number, one upper case letter and  8 characters long";
         #endregion

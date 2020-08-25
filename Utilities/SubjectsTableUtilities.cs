@@ -16,6 +16,7 @@ using Microsoft.Azure.EventHubs.Processor;
 using System.Linq;
 using Pack2SchoolFunctions;
 using Pack2SchoolFunction;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace Pack2SchoolFunctions
 {
@@ -63,6 +64,22 @@ namespace Pack2SchoolFunctions
             await CloudTableUtilities.AddTableEntity(table, newStudentSubjects, newUserRequest.userId, SubjectRowKey);
         }
 
+        public static List<string> GetNeededSubject(string tableName)
+        {
+            var subjectsTable = CloudTableUtilities.OpenTable(tableName);
+            var subjectsNames = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, classSubjectsPartitionKey).Result.First();
+            var subjectsNecessity = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, NecessityPartitionKey).Result.First();
+            return GetNecessitySubjects(subjectsNames, subjectsNecessity);
+        }
+
+        public static List<string> GetAllSubjects(string tableName)
+        { 
+            var subjectsTable = CloudTableUtilities.OpenTable(tableName);
+            var subjectsRow = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, classSubjectsPartitionKey).Result.First();
+            return typeof(SubjectsTable).GetProperties().Where(propInfo => propInfo.Name.Contains(SubjectPropertyPrefix) && propInfo.GetValue(subjectsRow) != null)
+                .Select(propInfo => propInfo.GetValue(subjectsRow)?.ToString()).ToList();
+        }
+
         public static void RenameSubject(SubjectRequest editSubjectRequest, SubjectsTable subjectsNames, SubjectsTable subjectsNecessity, OperationResult operationResult)
         {
             var subject = typeof(SubjectsTable).GetProperties().Where(x => x.GetValue(subjectsNames, null)?.ToString() == editSubjectRequest.subjectName);
@@ -108,6 +125,33 @@ namespace Pack2SchoolFunctions
             }
         }
 
+        internal static List<string> GetMissingSubejcts(string tableName, string userId)
+        {
+            var subjectsTable = CloudTableUtilities.OpenTable(tableName);
+            var subjectsNames = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, classSubjectsPartitionKey).Result.First();
+            var subjectsNecessity = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, NecessityPartitionKey).Result.First();
+            var studentSubjects = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, userId, NecessityRowKey).Result.First();
+
+            List<string> missingSubjects = new List<string>();
+
+            var subjectsNamesDict = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix) && x.GetValue(subjectsNames, null) != null).ToDictionary(prop => prop.Name, prop => prop.GetValue(subjectsNames, null).ToString());
+            var subjectsNecessityDict = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix) && x.GetValue(subjectsNames, null) != null).ToDictionary(prop => prop.Name, prop => prop.GetValue(subjectsNecessity, null)?.ToString());
+            var studentSubjectsDict = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix) && x.GetValue(subjectsNames, null) != null).ToDictionary(prop => prop.Name, prop => prop.GetValue(studentSubjects, null)?.ToString());
+
+            foreach (var subjectNecessity in subjectsNecessityDict)
+            {
+                if (subjectNecessity.Value == NeededSubject && studentSubjectsDict.GetValueOrDefault(subjectNecessity.Key) == NotInsideTheBag)
+                {
+
+                    missingSubjects.Add(subjectsNamesDict.GetValueOrDefault(subjectNecessity.Key));
+                }
+            }
+
+            return missingSubjects;
+
+
+        }
+
         public static void UpdateSubjectNecessity(SubjectsTable SubjectNames, SubjectsTable Necessity, SubjectRequest subjectRequest)
         {
             var subjectName = subjectRequest.subjectName;
@@ -123,56 +167,6 @@ namespace Pack2SchoolFunctions
             var properties = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix) && x.GetValue(subjectsNecessity, null)?.ToString() == "true");
             var necessitysubjects = properties.Select(x => subjectsNameDict[x.Name.ToString()].ToString()).ToList();
             return necessitysubjects;  
-        }
-
-        internal static void ResetNecessities(SubjectsTable subjects)
-        {
-            List<string> neededSubjects = new List<string>();
-
-            if (subjects.SubjectA == "yes")
-            {
-                neededSubjects.Add(subjects.SubjectA);
-            }
-            else if (subjects.SubjectB == "yes")
-            {
-                neededSubjects.Add(subjects.SubjectB);
-            }
-            else if (subjects.SubjectC == null)
-            {
-                neededSubjects.Add(subjects.SubjectC);
-            }
-            else if (subjects.SubjectD == "yes")
-            {
-                neededSubjects.Add(subjects.SubjectD);
-            }
-            else if (subjects.SubjectE == "yes")
-            {
-                neededSubjects.Add(subjects.SubjectE);
-            }
-            else if (subjects.SubjectF == "yes")
-            {
-                neededSubjects.Add(subjects.SubjectF);
-            }
-        }
-
-        internal static List<string> GetMissingTable(SubjectsTable subjectsNames, SubjectsTable subjectsNecessity, SubjectsTable studentSubjects)
-        {
-            List<string> missingSubjects = new List<string>();
-
-            var subjectsNamesDict = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix) && x.GetValue(subjectsNames, null)!=null).ToDictionary(prop => prop.Name, prop => prop.GetValue(subjectsNames, null).ToString());
-            var subjectsNecessityDict = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix) && x.GetValue(subjectsNames, null) != null).ToDictionary(prop => prop.Name, prop => prop.GetValue(subjectsNecessity, null)?.ToString());
-            var studentSubjectsDict = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix) && x.GetValue(subjectsNames, null) != null).ToDictionary(prop => prop.Name, prop => prop.GetValue(studentSubjects, null)?.ToString());
-
-            foreach (var subjectNecessity in subjectsNecessityDict)
-            {
-                if (subjectNecessity.Value == NeededSubject && studentSubjectsDict.GetValueOrDefault(subjectNecessity.Key) == NotInsideTheBag)
-                {
-                    
-                    missingSubjects.Add(subjectsNamesDict.GetValueOrDefault(subjectNecessity.Key));
-                }
-            }
-
-            return missingSubjects;
         }
 
         public static async void CreateClassTable(string tableName)
@@ -191,23 +185,36 @@ namespace Pack2SchoolFunctions
 
         }
 
-        internal static void UpdateSubjectState(CloudTable subjectsTable, SubjectsTable userSubject, SubjectsTable subjectsState, Dictionary<string, string> newStates)
+        public static async Task UpdateStudentStickers(string studentId, List<string> subjects)
         {
-            var userSubjects = typeof(SubjectsTable).GetProperties().ToDictionary(prop => prop.GetValue(userSubject, null), prop => prop.Name);
-
-            foreach(var subject in userSubjects)
+            var usersTable =  CloudTableUtilities.OpenTable(ProjectConsts.UsersTableName);
+            var studentEntity = CloudTableUtilities.getTableEntityAsync<UsersTable>(usersTable, studentId).Result.First();
+            var subjectsTableName =  UsersTableUtilities.GetSubjectsTableNamesForStudent(studentEntity).First();
+            var subjectTable = CloudTableUtilities.OpenTable(subjectsTableName);
+            var subjectsNecessities = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectTable, studentId, NecessityRowKey).Result.First();
+            var subjectsNames = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectTable, studentId, SubjectRowKey).Result.First();
+            var subjectsNamesDict = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix) && x.GetValue(subjectsNames, null) != null).ToDictionary(prop => prop.Name, prop => prop.GetValue(subjectsNames, null)?.ToString());
+            foreach ( var subject in subjectsNamesDict)
             {
-                typeof(SubjectsTable).GetProperty(subject.Value).SetValue(subjectsState, newStates.GetValueOrDefault(subject.Key.ToString()));
+                if (subjects.Contains(subject.Value))
+                {
+                    typeof(SubjectsTable).GetProperty(subject.Key).SetValue(subjectsNecessities, InsideTheBag);
+                }
+                else
+                {
+                    typeof(SubjectsTable).GetProperty(subject.Key).SetValue(subjectsNecessities, NotInsideTheBag);
+                }
             }
+
+            await CloudTableUtilities.AddTableEntity(subjectTable, subjectsNecessities, subjectsNecessities.PartitionKey, subjectsNecessities.RowKey);
+
         }
 
-        internal static void ResetProperties(SubjectsTable necessityRow)
+        public static List<string> GetAllStudentsIds(string tableName)
         {
-            var subjects = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectPropertyPrefix));
-            foreach (var subject in subjects)
-            {
-                subject.SetValue(necessityRow, NotInsideTheBag);
-            }
+            var subjectsTable = CloudTableUtilities.OpenTable(tableName);
+            var studentEntity = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, null, NecessityRowKey).Result;
+            return studentEntity.Select(x => x.PartitionKey).ToList();
         }
     }
 }

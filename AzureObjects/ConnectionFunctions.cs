@@ -22,7 +22,6 @@ namespace Pack2SchoolFunctions.AzureObjects
     {
 
         private static readonly AzureSignalR SignalR = new AzureSignalR(Environment.GetEnvironmentVariable("AzureSignalRconnectionString"));
-        private static readonly string SignalRName = Environment.GetEnvironmentVariable("SignalRName");
 
         [FunctionName("Negotiate")]
         public static async Task<SignalRConnectionInfo> NegotiateConnection(
@@ -35,7 +34,7 @@ namespace Pack2SchoolFunctions.AzureObjects
                 ConnectionRequest connectionRequest = await Utilities.ExtractContent<ConnectionRequest>(request);
                 log.LogInformation($"Negotiating connection for user: <{connectionRequest.UserId}>.");
 
-                string clientHubUrl = SignalR.GetClientHubUrl(SignalRName);
+                string clientHubUrl = SignalR.GetClientHubUrl("Pack2SchoolSignalR1");
                 string accessToken = SignalR.GenerateAccessToken(clientHubUrl, connectionRequest.UserId);
                 return new SignalRConnectionInfo { AccessToken = accessToken, Url = clientHubUrl };
             }

@@ -2,6 +2,8 @@ using Microsoft.Azure.EventHubs;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.SignalRService;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Pack2SchoolFunction;
 using System;
 using System.Collections.Generic;
@@ -24,10 +26,12 @@ namespace Pack2SchoolFunctions
             {
                 try
                 {
+                    eventData.SystemProperties.TryGetValue("iothub-connection-device-id", out var deviceIdObj);
+                    string deviceId = (string)deviceIdObj;
                     string messageBody = Encoding.UTF8.GetString(eventData.Body.Array, eventData.Body.Offset, eventData.Body.Count);
-                    var baseUrl = "https://pack2schoolfunctions.azurewebsites.net/api/UpdateStudent";
-                    await Utilities.sendHttpRequest(baseUrl, HttpMethod.Post, messageBody);
-                    await Task.Yield();
+                    JObject obj = JObject.Parse(messageBody);
+                    var  subjects = obj["stickers"].Select(x=>x.ToString()).ToList();
+                    await SubjectsTableUtilities.UpdateStudentStickers(deviceId, subjects);
                 }
                 catch (Exception e)
                 { 

@@ -24,17 +24,14 @@ namespace Pack2SchoolFunctions.AzureObjects
             {
 
                 var d = new Device(deviceId);
-
-              //  device = await registryManager.AddDeviceAsync(d);
+                device = await registryManager.AddDeviceAsync(d);
             }
             catch (DeviceAlreadyExistsException)
             {
                 Console.WriteLine("Already existing device:");
-           //     device = await registryManager.
-             //   GetDeviceAsync(deviceId);
+                device = await registryManager.GetDeviceAsync(deviceId);
             }
-            //  return string.Format(connectionStringFormat, deviceId, device.Authentication.SymmetricKey.PrimaryKey);
-            return null;
+              return string.Format(connectionStringFormat, deviceId, device.Authentication.SymmetricKey.PrimaryKey);
         }
 
         public static async Task SendCloudToDeviceMessageAsync(string operaion, string userId)

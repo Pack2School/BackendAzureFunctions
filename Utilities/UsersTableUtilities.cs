@@ -89,6 +89,12 @@ namespace Pack2SchoolFunctions
         public static List<string> GetSubjectsTableNamesForTeacher(UsersTable user)
         {
             var subjectsTablesNames = new List<string>();
+
+            if(user.ClassId == null)
+            {
+                return subjectsTablesNames;
+            }
+
             var Grades = user.ClassId.Split(ProjectConsts.delimiter).ToList();
             var classesTable = CloudTableUtilities.OpenTable(ProjectConsts.classesTableName);
 

@@ -56,6 +56,12 @@ namespace Pack2SchoolFunctions
 
             if (newUserRequest.userType == ProjectConsts.ParentType)
             {
+                if (childrenIds == null)
+                {
+                    response.UpdateFailure(ErrorMessages.NoChildIdProvided);
+                    return JsonConvert.SerializeObject(response);
+                }
+
                 childrenIds = string.Join(ProjectConsts.delimiter, newUserRequest.childrenIds);
                 if (!UsersTableUtilities.ValidateChildrenIdExist(usersResult, newUserRequest, response))
                 {
@@ -68,6 +74,19 @@ namespace Pack2SchoolFunctions
             {
                 newUserRequest.userName = UsersTableUtilities.GetUniqueName(newUserRequest.userName);
             }
+
+            if (newUserRequest.userType == ProjectConsts.StudentType)
+            {
+                var tableExist = CloudTableUtilities.TableExist(newUserRequest.teacherUser + newUserRequest.classId);
+
+                if (!tableExist)
+                {
+                    response.UpdateFailure(string.Format(ErrorMessages.subjectTableNotExist));
+                    return JsonConvert.SerializeObject(response);
+                }
+
+            }
+        
 
             var newUser = new UsersTable()
             {
