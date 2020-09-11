@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Pack2SchoolFunction.Templates
+﻿namespace Pack2SchoolFunctions
 {
     public class SchoolClass
     {
         public string teacherId;
+
         public string classId;
     }
 }

@@ -4,9 +4,6 @@ using System.Text;
 
 namespace Pack2SchoolFunctions
 {
-    /// <summary>
-    /// sets all error messages 
-    /// </summary>
     public static class ErrorMessages
     {
         #region Login issues
@@ -36,6 +33,7 @@ namespace Pack2SchoolFunctions
 
         public static string noSubjectsAvailable = "The process of adding a new subject failed, all subjects were utilized";
         public static string subjetNotFound = "the given subject not found";
+
         #endregion 
     }
 }

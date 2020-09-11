@@ -1,36 +1,20 @@
 ﻿using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.WebJobs.Extensions.SignalRService;
 using Microsoft.Extensions.Logging;
-using Microsoft.WindowsAzure.Storage.Table;
+using Newtonsoft.Json;
 using Pack2SchoolFunction;
-using Pack2SchoolFunction.Tables;
 using Pack2SchoolFunction.Templates;
-using Pack2SchoolFunctions.AzureObjects;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using System;
-using Newtonsoft.Json;
-using Microsoft.AspNetCore.JsonPatch.Operations;
-using Microsoft.Azure.WebJobs.Extensions.SignalRService;
 
 namespace Pack2SchoolFunctions
 {
     public static class SubjectsTableFunctions
     {
-
-        #region Consts 
-
-        private static readonly AzureSignalR SignalR = new AzureSignalR(Environment.GetEnvironmentVariable("AzureSignalRConnectionString"));
-
-        private static readonly string classSubjectsPartitionKey = "0";
-        private static readonly string NecessityPartitionKey = "1";
-        private static readonly string NecessityRowKey = "Necessity";
-        private static readonly string SubjectRowKey = "Subjects";
-        private static readonly string SubjectPropertyPrefix = "Subject";
-
-        #endregion
 
         #region Teacher function 
 
@@ -42,26 +26,39 @@ namespace Pack2SchoolFunctions
             OperationResult operationResult = new OperationResult();
             SubjectRequest editSubjectRequest = await Utilities.ExtractContent<SubjectRequest>(request);
             var subjectsTable = CloudTableUtilities.OpenTable(editSubjectRequest.tableName);
-            var subjectsNames = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, classSubjectsPartitionKey).Result.First();
-            var subjectsNecessity = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, NecessityPartitionKey).Result.First();
+            var classSubjectsNames = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, SubjectsTableUtilities.ClassSubjects).Result.First();
+            var classSubjectsNecessity = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, SubjectsTableUtilities.Necessity).Result.First();
+            var classesTable = CloudTableUtilities.OpenTable(ProjectConsts.classesTableName);
+            var classesEntities = CloudTableUtilities.getTableEntityAsync<ClassesTable>(classesTable).Result;
+            string scheduleTableName = null;
+
+            foreach (var classEntity in classesEntities)
+            {
+
+                if (classEntity.subjectsTableName == editSubjectRequest.tableName)
+                {
+                    scheduleTableName = classEntity.ScheduleTableName;
+                    break;
+                }
+            }
 
             if (editSubjectRequest.requestType == ProjectConsts.AddSubjectOperation)
             {
-                SubjectsTableUtilities.AddNewSubject(editSubjectRequest, subjectsNames, subjectsNecessity, operationResult);
+                SubjectsTableUtilities.AddNewSubject(editSubjectRequest, classSubjectsNames, classSubjectsNecessity, operationResult);
             }
 
             if (editSubjectRequest.requestType == ProjectConsts.RenameSubjectOperation)
             {
-                SubjectsTableUtilities.RenameSubject(editSubjectRequest, subjectsNames, subjectsNecessity, operationResult);
+                await SubjectsTableUtilities.RenameSubjectAsync(editSubjectRequest, classSubjectsNames, scheduleTableName, classSubjectsNecessity, operationResult);
             }
 
             if (editSubjectRequest.requestType == ProjectConsts.DeleteSubjectOperation)
             {
-                SubjectsTableUtilities.DeleteSubject(editSubjectRequest, subjectsNames, subjectsNecessity, operationResult);
+                await SubjectsTableUtilities.DeleteSubjectAsync(editSubjectRequest, classSubjectsNames, scheduleTableName, classSubjectsNecessity, operationResult);
             }
 
-            await CloudTableUtilities.AddTableEntity(subjectsTable, subjectsNames, classSubjectsPartitionKey, classSubjectsPartitionKey);
-            await CloudTableUtilities.AddTableEntity(subjectsTable, subjectsNecessity, NecessityPartitionKey, NecessityPartitionKey);
+            await CloudTableUtilities.AddTableEntity(subjectsTable, classSubjectsNames);
+            await CloudTableUtilities.AddTableEntity(subjectsTable, classSubjectsNecessity);
 
             var neededSubjects = SubjectsTableUtilities.GetNeededSubject(editSubjectRequest.tableName);
             var allSubjects = SubjectsTableUtilities.GetAllSubjects(editSubjectRequest.tableName);
@@ -71,15 +68,15 @@ namespace Pack2SchoolFunctions
             {
                 var missingSubjects = SubjectsTableUtilities.GetMissingSubejcts(editSubjectRequest.tableName, studentId);
 
+                var dataBaseAndScanUpdates = new DataBaseAndScanUpdates(studentId, neededSubjects, missingSubjects, allSubjects);
 
                 await signalRMessages.AddAsync(
                 new SignalRMessage
                 {
                     UserId = studentId,
-                    Target = "EditSubject",
-                    Arguments = new object[] { neededSubjects, allSubjects, missingSubjects }
-                });
-
+                    Target = ProjectConsts.SignalRTarget,
+                    Arguments = new object[] { dataBaseAndScanUpdates }
+                }) ;
             }
 
             return JsonConvert.SerializeObject(operationResult);
@@ -90,34 +87,48 @@ namespace Pack2SchoolFunctions
          [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequestMessage request, [SignalR(HubName = "Pack2SchoolSignalR1")] IAsyncCollector<SignalRMessage> signalRMessages,
          ILogger log)
         {
-            var opeartionResult = new OperationResult();
-            SubjectRequest subjectInformation = await Utilities.ExtractContent<SubjectRequest>(request);
-            var subjectsTable = CloudTableUtilities.OpenTable(subjectInformation.tableName);
-            var subjectsNames = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, classSubjectsPartitionKey).Result.First();
-            var subjectsNecessity = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, NecessityPartitionKey).Result.First();
-            SubjectsTableUtilities.UpdateSubjectNecessity(subjectsNames, subjectsNecessity, subjectInformation);
-            await CloudTableUtilities.AddTableEntity<SubjectsTable>(subjectsTable, subjectsNecessity, NecessityPartitionKey, NecessityPartitionKey);
-            var neededSubjects = SubjectsTableUtilities.GetNeededSubject(subjectInformation.tableName);
-            var studentsIds = SubjectsTableUtilities.GetAllStudentsIds(subjectInformation.tableName);
+            var operationResult = new OperationResult();
+            SubjectRequest subjectRequest = await Utilities.ExtractContent<SubjectRequest>(request);
+            var subjectsTable = CloudTableUtilities.OpenTable(subjectRequest.tableName);
+            var classSubjectsNames = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, SubjectsTableUtilities.ClassSubjects).Result.First();
+            var classSubjectsNecessity = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, SubjectsTableUtilities.Necessity).Result.First();
+            SubjectsTableUtilities.UpdateSubjectNecessity(classSubjectsNames, classSubjectsNecessity, subjectRequest.neededForTomorrow);
+            await CloudTableUtilities.AddTableEntity(subjectsTable, classSubjectsNecessity);
+            var neededSubjects = SubjectsTableUtilities.GetNeededSubject(subjectRequest.tableName);
+            var studentsIds = SubjectsTableUtilities.GetAllStudentsIds(subjectRequest.tableName);
 
             foreach (var studentId in studentsIds)
             {
-                var missingSubjects = SubjectsTableUtilities.GetMissingSubejcts(subjectInformation.tableName, studentId);
+                var missingSubjects = SubjectsTableUtilities.GetMissingSubejcts(subjectRequest.tableName, studentId);
+
+                var dataBaseAndScanUpdates = new DataBaseAndScanUpdates(studentId, neededSubjects, missingSubjects);
 
                 await signalRMessages.AddAsync(
                 new SignalRMessage
                 {
                     UserId = studentId,
-                    Target = "UpdateSubjectNecessity",
-                    Arguments = new object[] { neededSubjects, missingSubjects }
+                    Target = ProjectConsts.SignalRTarget,
+                    Arguments = new object[] { dataBaseAndScanUpdates }
                 });
 
             }
 
-            return JsonConvert.SerializeObject(opeartionResult);
+            var classesTable = CloudTableUtilities.OpenTable(ProjectConsts.classesTableName);
+            var classesEntities = CloudTableUtilities.getTableEntityAsync<ClassesTable>(classesTable).Result;
+
+            foreach (var classEntity in classesEntities)
+            {
+
+                if (classEntity.subjectsTableName == subjectRequest.tableName)
+                {
+                    classEntity.LastTeacherUpdate = DateTime.Now;
+                    await CloudTableUtilities.AddTableEntity(classesTable, classEntity);
+                }
+
+            }
+
+            return JsonConvert.SerializeObject(operationResult);
         }
-
-
 
         #endregion
 
@@ -130,9 +141,8 @@ namespace Pack2SchoolFunctions
            ILogger log)
         {
             OperationResult operationResult = new OperationResult();
-            var opeartionResult = new OperationResult();
-            SubjectRequest subjectInformation = await Utilities.ExtractContent<SubjectRequest>(request);
-            var neededSubjects = SubjectsTableUtilities.GetNeededSubject(subjectInformation.tableName);
+            SubjectRequest subjectRequest = await Utilities.ExtractContent<SubjectRequest>(request);
+            var neededSubjects = SubjectsTableUtilities.GetNeededSubject(subjectRequest.tableName);
             operationResult.UpdateData(neededSubjects);
             return JsonConvert.SerializeObject(operationResult);
         }
@@ -144,8 +154,8 @@ namespace Pack2SchoolFunctions
            ILogger log)
         {
             OperationResult operationResult = new OperationResult();
-            SubjectRequest subjectInformation = await Utilities.ExtractContent<SubjectRequest>(request);
-            var missingSubjects = SubjectsTableUtilities.GetMissingSubejcts(subjectInformation.tableName, subjectInformation.userId);
+            SubjectRequest subjectRequest = await Utilities.ExtractContent<SubjectRequest>(request);
+            var missingSubjects = SubjectsTableUtilities.GetMissingSubejcts(subjectRequest.tableName, subjectRequest.userId);
             operationResult.UpdateData(missingSubjects);
             return JsonConvert.SerializeObject(operationResult);
         }
@@ -157,33 +167,38 @@ namespace Pack2SchoolFunctions
         {
             {
                 OperationResult operationResult = new OperationResult();
-                SubjectRequest addSubjectRequest = await Utilities.ExtractContent<SubjectRequest>(request);
-                var allSubjects = SubjectsTableUtilities.GetAllSubjects(addSubjectRequest.tableName);
+                SubjectRequest subjectsRequest = await Utilities.ExtractContent<SubjectRequest>(request);
+                var allSubjects = SubjectsTableUtilities.GetAllSubjects(subjectsRequest.tableName);
                 operationResult.UpdateData(allSubjects);
                 return JsonConvert.SerializeObject(operationResult);
             }
         }
 
         [FunctionName("UpdateSubjectStickers")]
-        public static async Task UpdateSubjectSticker([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequestMessage request,
+        public static async Task<string> UpdateSubjectSticker([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequestMessage request,
         ILogger log)
         {
+            OperationResult operationResult = new OperationResult();
             SubjectRequest subjectRequest = await Utilities.ExtractContent<SubjectRequest>(request);
             var subjectsTable = CloudTableUtilities.OpenTable(subjectRequest.tableName);
-            var userSubjects = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, subjectRequest.userId, SubjectRowKey).Result.First();
-            var subjects = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, classSubjectsPartitionKey, SubjectRowKey).Result.First();
-            var subjectsNamesDict = typeof(SubjectsTable).GetProperties().ToDictionary(prop => prop.GetValue(subjects, null).ToString(), prop => prop.Name);
+            var userStickers = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, subjectRequest.userId, SubjectsTableUtilities.Stickers).Result.First();
+            var classSubjects = CloudTableUtilities.getTableEntityAsync<SubjectsTable>(subjectsTable, SubjectsTableUtilities.ClassSubjects).Result.First();
 
-            typeof(SubjectsTable).GetProperty(subjectsNamesDict.GetValueOrDefault(subjectRequest.subjectName)).SetValue(userSubjects, subjectRequest.stickerId);
-            await CloudTableUtilities.AddTableEntity(subjectsTable, userSubjects, userSubjects.PartitionKey, userSubjects.RowKey);
+            var subjectsNamesDict = typeof(SubjectsTable).GetProperties().Where(x => x.Name.Contains(SubjectsTableUtilities.SubjectPropertyPrefix) && x.GetValue(classSubjects, null) != null).ToDictionary(prop => prop.GetValue(classSubjects, null).ToString(), prop => prop.Name);
+
+            typeof(SubjectsTable).GetProperty(subjectsNamesDict.GetValueOrDefault(subjectRequest.subjectName)).SetValue(userStickers, subjectRequest.stickerId);
+            await CloudTableUtilities.AddTableEntity(subjectsTable, userStickers);
+            return JsonConvert.SerializeObject(operationResult);
         }
 
         [FunctionName("SendScanOperation")]
-        public static async Task SendScanOperation([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequestMessage request, ILogger log)
+        public static async Task<string> SendScanOperation([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequestMessage request, ILogger log)
         {
+            OperationResult operationResult = new OperationResult();
             SubjectRequest subjectRequest = await Utilities.ExtractContent<SubjectRequest>(request);
             var operation = JsonConvert.SerializeObject(new { command = ProjectConsts.scanOperaion });
             await IotDeviceFunctions.SendCloudToDeviceMessageAsync(operation, subjectRequest.userId);
+            return JsonConvert.SerializeObject(operationResult);
         }
 
         #endregion

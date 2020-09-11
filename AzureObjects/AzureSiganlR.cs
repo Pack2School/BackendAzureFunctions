@@ -6,7 +6,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Pack2SchoolFunctions.AzureObjects
+namespace Pack2SchoolFunctions
 {
     internal class AzureSignalR
     {

@@ -1,10 +1,7 @@
 ﻿using Microsoft.WindowsAzure.Storage.Table;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Pack2SchoolFunction.Tables
-{
+namespace Pack2SchoolFunctions
+{ 
     /// <summary>
     /// Descirbes the columns in the user tables 
     /// where partition key is the user ID and RowKey is the user full name

@@ -1,12 +1,12 @@
 ﻿using Microsoft.WindowsAzure.Storage.Table;
 
 namespace Pack2SchoolFunctions
-{
+{ 
     /// <summary>
-    /// Descirbes the columns in the subjects table name
-    /// where partition key is the user ID and and the RowKey is type of row
+    /// Descirbes the columns in the schedule tables 
+    /// where partition key and row kays are day 
     /// </summary>
-    public class SubjectsTable : TableEntity
+    public class ScheduleTable  : TableEntity
     {
         public string SubjectA { get; set; }
         public string SubjectB { get; set; }

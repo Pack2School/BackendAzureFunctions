@@ -1,5 +1,4 @@
-﻿using Microsoft.Azure.Amqp.Framing;
-using Microsoft.WindowsAzure.Storage;
+﻿using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Table;
 using System;
@@ -43,6 +42,11 @@ namespace Pack2SchoolFunctions
             entity.PartitionKey = partitionKey;
             entity.RowKey = rowKey;
             await table.ExecuteAsync(insertOperation);
+        }
+
+        public static async Task AddTableEntity<T>(CloudTable table, T entity) where T : TableEntity
+        {
+            await AddTableEntity(table, entity,  entity.PartitionKey, entity.RowKey);
         }
 
         public static async Task<TableQuerySegment<T>> getTableEntityAsync<T>(CloudTable table, string partitionCondition = null, string rowKeyConition = null) where T : TableEntity, new()

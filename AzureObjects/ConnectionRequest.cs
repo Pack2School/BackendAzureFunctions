@@ -1,4 +1,4 @@
-﻿namespace Pack2SchoolFunctions.AzureObjects
+﻿namespace Pack2SchoolFunctions
 {
     internal class ConnectionRequest
     {

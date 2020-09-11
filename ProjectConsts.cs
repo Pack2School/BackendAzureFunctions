@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Pack2SchoolFunctions
+﻿namespace Pack2SchoolFunctions
 {
     public static class ProjectConsts
     {
@@ -16,7 +12,7 @@ namespace Pack2SchoolFunctions
 
         public const string classSubjectsPartitionKey = "0";
         public const string NecessityPartitionKey = "1";
-        public const string NecessityRowKey = "Necessity";
+        public const string NecessityRowKey = "Necessity"; 
         public const string SubjectRowKey = "Subjects";
         public const string SubjectPropertyPrefix = "Subject";
         public const string DeviceId = "deviceId";
@@ -56,6 +52,11 @@ namespace Pack2SchoolFunctions
         #region Iot Device Operation 
 
         public static readonly string scanOperaion = "Scan";
+
+        #endregion
+
+        #region SingalR 
+        public static readonly string SignalRTarget = "DataBaseAndScanUpdates";
 
         #endregion
     }

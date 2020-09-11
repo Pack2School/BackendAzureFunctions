@@ -1,8 +1,5 @@
-﻿using Microsoft.Azure.Documents;
-using Microsoft.WindowsAzure.Storage.Table;
-using Pack2SchoolFunction.Tables;
+﻿using Microsoft.WindowsAzure.Storage.Table;
 using Pack2SchoolFunction.Templates;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -17,7 +14,7 @@ namespace Pack2SchoolFunctions
                 if (user.PartitionKey == newUserRequest.userId)
                 {
                     response.UpdateFailure(ErrorMessages.UserExist);
-                    return response.requestSucceeded;
+                    break;
                 }
             }
 
@@ -38,73 +35,69 @@ namespace Pack2SchoolFunctions
 
             if (childerns.Any())
             {
-                try
-                {
-                    var a = string.Join(ProjectConsts.delimiter, newUserRequest.childrenIds);
-                    response.UpdateFailure(string.Format(ErrorMessages.childIdNotFound, string.Join(ProjectConsts.delimiter, newUserRequest.childrenIds)));
-                }
-                catch( Exception e)
-                {
-                    System.Console.WriteLine(e);
-                }
+                    response.UpdateFailure(string.Format(ErrorMessages.childIdNotFound, string.Join(ProjectConsts.delimiter, childerns))); 
             }
 
             return response.requestSucceeded;
         }
 
-
-        public static List<string> GetSubjectsTableNamesForParent(UsersTable user)
-        {
-                var subjectsTablesNames = new List<string>();
-                var usersTable = CloudTableUtilities.OpenTable(ProjectConsts.UsersTableName);
-                var classesTable = CloudTableUtilities.OpenTable(ProjectConsts.classesTableName);
-                var childrenIds = user.ChildrenIds.Split(ProjectConsts.delimiter).ToList();
-
-                foreach (var childId in childrenIds)
-                {
-                    var childEntity = CloudTableUtilities.getTableEntityAsync<UsersTable>(usersTable, childId).Result.First();
-                    var childclassEntity = CloudTableUtilities.getTableEntityAsync<ClassesTable>(classesTable, childEntity.TeacherName, childEntity.ClassId).Result.First();
-                    subjectsTablesNames.Add(childclassEntity.subjectsTableName);
-                }
-            
-
-            return subjectsTablesNames;
-        }
-
         internal static string GetUniqueName(string userName)
         {
-            var classesTable = CloudTableUtilities.OpenTable(ProjectConsts.UsersTableName);
-            var classEntity = CloudTableUtilities.getTableEntityAsync<UsersTable>(classesTable, rowKeyConition: userName).Result;
-            var numberOfTeachers = classEntity.Where(user => user.UserType == ProjectConsts.TeacherType).ToList().Count;
-            return $"{userName}{numberOfTeachers}";
+            var usersTable = CloudTableUtilities.OpenTable(ProjectConsts.UsersTableName);
+            var usersEntities = CloudTableUtilities.getTableEntityAsync<UsersTable>(usersTable).Result;
+            int numberOfTeacher = usersEntities.Where(user => user.RowKey.Contains(userName) && user.UserType == ProjectConsts.TeacherType).Count();
+            return $"{userName}{numberOfTeacher}";
         }
 
-        public static List<string> GetSubjectsTableNamesForStudent(UsersTable user)
+        public static List<string> GetSubjectsTableNamesForStudent(UsersTable userEntity)
         {
             var classesTable = CloudTableUtilities.OpenTable(ProjectConsts.classesTableName);
-            var classEntity = CloudTableUtilities.getTableEntityAsync<ClassesTable>(classesTable, user.TeacherName, user.ClassId).Result.First();
+            var classEntity = CloudTableUtilities.getTableEntityAsync<ClassesTable>(classesTable, userEntity.TeacherName, userEntity.ClassId).Result.First();
             return new List<string>() { classEntity.subjectsTableName };
         }
 
-        public static List<string> GetSubjectsTableNamesForTeacher(UsersTable user)
+        public static List<string> GetSubjectsTableNamesForTeacher(UsersTable userEntity)
         {
             var subjectsTablesNames = new List<string>();
 
-            if(user.ClassId == null)
+            if(userEntity.ClassId == null)
             {
                 return subjectsTablesNames;
             }
 
-            var Grades = user.ClassId.Split(ProjectConsts.delimiter).ToList();
+            var classesIds = userEntity.ClassId.Split(ProjectConsts.delimiter).ToList();
             var classesTable = CloudTableUtilities.OpenTable(ProjectConsts.classesTableName);
 
-            foreach(var grade in Grades)
+            foreach(var classId in classesIds)
             {
-                var classEntity = CloudTableUtilities.getTableEntityAsync<ClassesTable>(classesTable, user.RowKey, grade).Result.First();
+                var classEntity = CloudTableUtilities.getTableEntityAsync<ClassesTable>(classesTable, userEntity.RowKey, classId).Result.First();
                 subjectsTablesNames.Add(classEntity.subjectsTableName);
             }
 
             return subjectsTablesNames;
+        }
+
+        public static List<UsersTable> GetParentsEntitiesFromChildId(string childId)
+        {
+            var parentsIds = new List<UsersTable>();
+            var usersTable = CloudTableUtilities.OpenTable(ProjectConsts.UsersTableName);
+            var usersEntity = CloudTableUtilities.getTableEntityAsync<UsersTable>(usersTable).Result;
+
+            foreach( var userEntity in usersEntity)
+            {
+                if (userEntity.UserType != ProjectConsts.ParentType)
+                {
+                    continue;
+                }
+
+                var childrenIds = userEntity.ChildrenIds.Split(ProjectConsts.delimiter).ToList();
+                if (childrenIds.Contains(childId))
+                {
+                    parentsIds.Add(userEntity);
+                }
+            }
+
+            return parentsIds;
         }
 
     }
