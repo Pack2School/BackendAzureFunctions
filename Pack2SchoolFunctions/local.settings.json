@@ -1,0 +1,14 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=pack2schooldatabase;AccountKey=a/SG3Sd/I/fXbdeBZoPBZ2YT+TX1sxO/rLJgw/2wI0KuiTtDe8HR18tKHlblphlmgqKgK+G6s1D0t3Tn+tGybg==;BlobEndpoint=https://pack2schooldatabase.blob.core.windows.net/;TableEndpoint=https://pack2schooldatabase.table.core.windows.net/;QueueEndpoint=https://pack2schooldatabase.queue.core.windows.net/;FileEndpoint=https://pack2schooldatabase.file.core.windows.net/",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+    "AccountName": "pack2schooldatabase",
+    "myConnection": "Endpoint=sb://pack2schooleventhub.servicebus.windows.net/;SharedAccessKeyName=iothubroutes_Pack2SchoolIoThub;SharedAccessKey=mnamluels+O7TC1mjc5mIeRLIw6ors0HM4XbO2A+X74=;EntityPath=pack2schoolhub",
+    "AccountKey": "a/SG3Sd/I/fXbdeBZoPBZ2YT+TX1sxO/rLJgw/2wI0KuiTtDe8HR18tKHlblphlmgqKgK+G6s1D0t3Tn+tGybg==",
+    "AzureSignalRconnectionString": "Endpoint=https://pack2schoolsignalr1.service.signalr.net;AccessKey=5dvbmntDLwKCuzuZ7Tc6/YlT4k6e6UtWWNFEdV7vZKI=;Version=1.0;",
+    "IotHubConnectionString": "HostName=Pack2SchoolIoThub.azure-devices.net;SharedAccessKeyName=service;SharedAccessKey=WxRPMkict8HsuVZHDHJRVoghjSwOoKjWlVcTLSTbFKg=",
+    "SignalRName": "Pack2SchoolSignalR1",
+    "SENDGRID_APIKEY": "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"
+  }
+}
