@@ -73,7 +73,7 @@ namespace Pack2SchoolFunctions
 
         public static async Task RenameSubjectAsync(SubjectRequest editSubjectRequest, SubjectsTable subjectsNames, string scheduleTableName, SubjectsTable subjectsNecessity, OperationResult operationResult)
         {
-            var subjects = typeof(SubjectsTable).GetProperties().Where(x => x.GetValue(subjectsNames, null)?.ToString() == editSubjectRequest.subjectName);
+            var subjects = typeof(SubjectsTable).GetProperties().Where(x => string.Equals(x.GetValue(subjectsNames, null)?.ToString(), editSubjectRequest.subjectName));
 
             if (!subjects.Any())
             {
@@ -124,7 +124,7 @@ namespace Pack2SchoolFunctions
 
         public static async Task DeleteSubjectAsync(SubjectRequest editSubjectRequest, SubjectsTable classSubjectsNamesEntity, string scheduleTableName, SubjectsTable classSubjectsNecessityEntity, OperationResult operationResult)
         {
-            var subjectsName = typeof(SubjectsTable).GetProperties().Where(x => x.GetValue(classSubjectsNamesEntity, null)?.ToString() == editSubjectRequest.subjectName);
+            var subjectsName = typeof(SubjectsTable).GetProperties().Where(x => string.Equals(x.GetValue(classSubjectsNamesEntity, null)?.ToString(), editSubjectRequest.subjectName));
 
             if (!subjectsName.Any())
             {

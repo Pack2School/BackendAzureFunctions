@@ -77,7 +77,7 @@ namespace Pack2SchoolFunctions
                 ChildrenIds = childrenIds
             };
 
-            await CloudTableUtilities.AddTableEntity(usersTable, newUserEntity);
+            await CloudTableUtilities.AddTableEntity(usersTable, newUserEntity, newUserRequest.userId, newUserRequest.userName);
            
             if (newUserRequest.userType == ProjectConsts.TeacherType)
             {

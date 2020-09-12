@@ -44,6 +44,7 @@ namespace Pack2SchoolFunctions
 
                     var daysInfo1 = typeof(ScheduleSetter).GetProperties().ToList();
                     var daysInfo = typeof(ScheduleSetter).GetProperties().Where(x => x.Name != "className").ToList();
+
                     foreach (var dayinfo in daysInfo)
                     {
                         var dayEnity = new ScheduleTable();
@@ -71,7 +72,7 @@ namespace Pack2SchoolFunctions
         }
 
         [FunctionName("UpadteNecessityBySchedule")]
-        public static async Task RunAsync([TimerTrigger("0 35 08 * * *")]TimerInfo myTimer, [SignalR(HubName = "Pack2SchoolSignalR1")] IAsyncCollector<SignalRMessage> signalRMessages, ILogger log)
+        public static async Task RunAsync([TimerTrigger("0 00 14 * * *")]TimerInfo myTimer, [SignalR(HubName = "Pack2SchoolSignalR1")] IAsyncCollector<SignalRMessage> signalRMessages, ILogger log)
         {
             var TodayDateTime = DateTime.Today;
             var classesTable = CloudTableUtilities.OpenTable(ProjectConsts.classesTableName);
